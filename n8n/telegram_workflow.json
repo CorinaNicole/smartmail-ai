@@ -1,0 +1,131 @@
+{
+  "name": "SmartMail - Telegram Spam Bot",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": ["message"],
+        "additionalFields": {}
+      },
+      "id": "telegram-trigger",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://smartmail_api:8000/predict/bot",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ $json.message.text }}"
+            },
+            {
+              "name": "canal",
+              "value": "telegram"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "call-api",
+      "name": "Analizar con SmartMail AI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.is_spam }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check-spam",
+      "name": "¿Es Spam?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "🚨 *¡ALERTA DE SPAM DETECTADO!*\n\n⚠️ SmartMail AI analizó tu mensaje y detectó que es *SPAM*.\n\n📊 *Confianza:* {{ $json.confidence }}%\n\n❌ Se recomienda *no hacer clic* en ningún enlace de este mensaje.\n\n_Análisis realizado por SmartMail AI 🤖_",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "reply-spam",
+      "name": "Responder: ES SPAM",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [960, 180]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "✅ *Mensaje analizado: LEGÍTIMO*\n\n🛡️ SmartMail AI revisó tu mensaje y *no detectó spam*.\n\n📊 *Confianza:* {{ $json.confidence }}%\n\n_Puedes confiar en este mensaje. Análisis por SmartMail AI 🤖_",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "reply-ham",
+      "name": "Responder: ES LEGÍTIMO",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [960, 420]
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Analizar con SmartMail AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analizar con SmartMail AI": {
+      "main": [
+        [
+          {
+            "node": "¿Es Spam?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Es Spam?": {
+      "main": [
+        [
+          {
+            "node": "Responder: ES SPAM",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder: ES LEGÍTIMO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

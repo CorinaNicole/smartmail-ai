@@ -1,0 +1,186 @@
+{
+  "name": "SmartMail - Gmail Spam Auto-Respuesta",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {
+          "readStatus": "unread",
+          "sender": ""
+        },
+        "options": {}
+      },
+      "id": "gmail-trigger",
+      "name": "Gmail - Nuevo Correo",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "1",
+          "name": "Gmail OAuth2 (configurar en n8n)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://smartmail_api:8000/predict/bot",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ $json.subject + ' ' + $json.snippet }}"
+            },
+            {
+              "name": "canal",
+              "value": "gmail"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "call-api",
+      "name": "Analizar con SmartMail AI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.is_spam }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check-spam",
+      "name": "¿Es Spam?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $('Gmail - Nuevo Correo').item.json.id }}",
+        "labelIds": ["SPAM"]
+      },
+      "id": "label-spam",
+      "name": "Marcar como SPAM en Gmail",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [960, 120],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "1",
+          "name": "Gmail OAuth2 (configurar en n8n)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "toList": "={{ $('Gmail - Nuevo Correo').item.json.from }}",
+        "subject": "🚨 SmartMail AI: Tu mensaje fue detectado como SPAM",
+        "message": "<h2>⚠️ Alerta de SmartMail AI</h2><p>Nuestro sistema de inteligencia artificial analizó el mensaje que enviaste con el asunto: <strong>{{ $('Gmail - Nuevo Correo').item.json.subject }}</strong></p><p>El resultado del análisis es:</p><ul><li>🚨 <strong>Clasificación: SPAM</strong></li><li>📊 <strong>Confianza: {{ $json.confidence }}%</strong></li></ul><p>Este mensaje ha sido marcado y movido automáticamente.</p><br><p><em>— SmartMail AI 🤖 | Sistema de Detección de Spam</em></p>",
+        "options": {
+          "bodyContentType": "html"
+        }
+      },
+      "id": "reply-spam",
+      "name": "Responder: Notificar SPAM",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [960, 260],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "1",
+          "name": "Gmail OAuth2 (configurar en n8n)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "toList": "={{ $('Gmail - Nuevo Correo').item.json.from }}",
+        "subject": "✅ SmartMail AI: Tu mensaje fue verificado como legítimo",
+        "message": "<h2>✅ Mensaje Verificado por SmartMail AI</h2><p>Analizamos el mensaje con asunto: <strong>{{ $('Gmail - Nuevo Correo').item.json.subject }}</strong></p><p>Resultado:</p><ul><li>✅ <strong>Clasificación: LEGÍTIMO (Ham)</strong></li><li>📊 <strong>Confianza: {{ $json.confidence }}%</strong></li></ul><p>No se detectó contenido spam. El mensaje es seguro.</p><br><p><em>— SmartMail AI 🤖 | Sistema de Detección de Spam</em></p>",
+        "options": {
+          "bodyContentType": "html"
+        }
+      },
+      "id": "reply-ham",
+      "name": "Responder: Mensaje Legítimo",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [960, 440],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "1",
+          "name": "Gmail OAuth2 (configurar en n8n)"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Gmail - Nuevo Correo": {
+      "main": [
+        [
+          {
+            "node": "Analizar con SmartMail AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analizar con SmartMail AI": {
+      "main": [
+        [
+          {
+            "node": "¿Es Spam?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Es Spam?": {
+      "main": [
+        [
+          {
+            "node": "Marcar como SPAM en Gmail",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Responder: Notificar SPAM",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder: Mensaje Legítimo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

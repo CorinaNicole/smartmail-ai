@@ -36,6 +36,19 @@ services:
       - api
     restart: unless-stopped
 
+  # ── Bot de Discord ───────────────────────────
+  discord_bot:
+    build:
+      context: .
+      dockerfile: Dockerfile.discord
+    container_name: smartmail_discord
+    environment:
+      - DISCORD_TOKEN=PEGA_AQUI_TU_TOKEN_DE_DISCORD
+      - API_URL=http://smartmail_api:8000/predict/bot
+    depends_on:
+      - api
+    restart: unless-stopped
+
   # ── n8n (automatización) ─────────────────────
   n8n:
     image: n8nio/n8n:latest
@@ -49,8 +62,8 @@ services:
       - N8N_HOST=traction-pregnant-province.ngrok-free.dev
       - N8N_PORT=5678
       - N8N_PROTOCOL=https
-      - WEBHOOK_URL=https://traction-pregnant-province.ngrok-free.dev
-      - API_URL=http://api:8000
+      - WEBHOOK_URL=https://traction-pregnant-province.ngrok-free.dev/
+      - API_URL=http://smartmail_api:8000
     volumes:
       - n8n_data:/home/node/.n8n
     depends_on:
